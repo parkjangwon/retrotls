@@ -1,6 +1,6 @@
 use std::convert::Infallible;
 use std::net::SocketAddr;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
@@ -28,7 +28,7 @@ use tokio_rustls::TlsConnector;
 use tracing::{error, info, warn};
 use tracing_subscriber::EnvFilter;
 
-const VERSION: &str = "1.3.0";
+const VERSION: &str = "1.4.0";
 const DEFAULT_LOG_LEVEL: &str = "info";
 const DEFAULT_SHUTDOWN_TIMEOUT_SECS: u64 = 30;
 
@@ -81,27 +81,28 @@ fn is_process_running(pid: u32) -> bool {
 #[derive(Parser)]
 #[command(name = "retrotls")]
 #[command(about = "Ultra-lightweight HTTP to HTTPS bridge proxy", version = VERSION)]
+#[command(arg_required_else_help(true))]
 struct Cli {
     #[command(subcommand)]
     command: Option<Commands>,
 
-    #[arg(short, long, value_name = "FILE", help = "Configuration file path")]
+    #[arg(short, long, value_name = "FILE", help = "Configuration file path", global = true)]
     config: Option<PathBuf>,
 
-    #[arg(long, help = "Check configuration validity and exit")]
+    #[arg(long, help = "Check configuration validity and exit", global = true)]
     check: bool,
 
-    #[arg(long, help = "Log level (debug, info, warn, error)")]
+    #[arg(long, help = "Log level (debug, info, warn, error)", global = true)]
     log_level: Option<String>,
-
-    #[arg(long, help = "Run in foreground (do not daemonize)")]
-    foreground: bool,
 }
 
 #[derive(Subcommand)]
 enum Commands {
-    #[command(about = "Start the RetroTLS daemon (default)")]
-    Start,
+    #[command(about = "Start the RetroTLS daemon")]
+    Start {
+        #[arg(long, help = "Run in foreground (do not daemonize)")]
+        foreground: bool,
+    },
     #[command(about = "Stop the running RetroTLS daemon")]
     Stop,
     #[command(about = "Print version information")]
@@ -240,13 +241,20 @@ fn stop_daemon() -> Result<(), AppError> {
             .output();
     }
     
-    println!("RetroTLS daemon stopped (PID: {})", pid);
+    info!("RetroTLS daemon stop signal sent (PID: {})", pid);
+    println!("RetroTLS daemon stop signal sent (PID: {})", pid);
     remove_pid_file();
     Ok(())
 }
 
 #[tokio::main]
 async fn main() {
+    // Install default crypto provider for rustls 0.23+
+    #[cfg(feature = "ring")]
+    let _ = rustls::crypto::ring::default_provider().install_default();
+    #[cfg(all(not(feature = "ring"), feature = "aws-lc-rs"))]
+    let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
+
     if let Err(err) = run().await {
         eprintln!("Fatal error: {err}");
         std::process::exit(1);
@@ -255,6 +263,8 @@ async fn main() {
 
 async fn run() -> Result<(), AppError> {
     let cli = Cli::parse();
+
+    let mut foreground = false;
 
     if let Some(cmd) = cli.command {
         match cmd {
@@ -265,8 +275,8 @@ async fn run() -> Result<(), AppError> {
                 println!("{VERSION}");
                 return Ok(());
             }
-            Commands::Start => {
-                // continue to start daemon
+            Commands::Start { foreground: fg } => {
+                foreground = foreground || fg;
             }
         }
     }
@@ -288,9 +298,8 @@ async fn run() -> Result<(), AppError> {
         remove_pid_file();
     }
 
-    // Daemonize unless --foreground is specified
-    if !cli.foreground {
-        write_pid_file(std::process::id())?;
+    // Daemonize unless foreground is specified
+    if !foreground {
         daemonize()?;
         return Ok(());
     }

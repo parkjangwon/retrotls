@@ -66,17 +66,14 @@ cargo build --release
 
 ### 빠른 시작
 
-RetroTLS 실행:
+RetroTLS 실행 (데몬 모드):
 ```bash
-retrotls
+retrotls start
 ```
 
-최초 실행 시 `~/.config/retrotls/config.yaml`이 자동 생성됩니다.  
-설정 파일을 수정한 후 다시 실행하세요.
-
-또는 직접 설정 파일 생성:
+포그라운드 모드 실행:
 ```bash
-retrotls
+retrotls start --foreground
 ```
 
 ### CLI 옵션
@@ -85,7 +82,7 @@ retrotls
 retrotls [OPTIONS] [COMMAND]
 
 Commands:
-  start    데몬 시작 (기본값)
+  start    RetroTLS 데몬 시작
   stop     실행 중인 데몬 종료
   version  버전 정보 출력
   help     도움말 출력
@@ -94,9 +91,11 @@ Options:
   -c, --config <FILE>    설정 파일 경로
       --check            설정 검증 후 종료
       --log-level <LEVEL> 로그 레벨 (debug, info, warn, error)
-      --foreground       포그라운드 모드 실행
   -h, --help             도움말 출력
   -V, --version          버전 출력
+
+Start Options:
+      --foreground       포그라운드 모드 실행 (데몬화 하지 않음)
 ```
 
 ### 요청 흐름 예시
