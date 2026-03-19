@@ -28,7 +28,7 @@ use tokio_rustls::TlsConnector;
 use tracing::{error, info, warn};
 use tracing_subscriber::EnvFilter;
 
-const VERSION: &str = "0.1.0";
+const VERSION: &str = "1.0.0";
 const DEFAULT_LOG_LEVEL: &str = "info";
 const DEFAULT_SHUTDOWN_TIMEOUT_SECS: u64 = 30;
 
