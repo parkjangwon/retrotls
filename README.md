@@ -173,20 +173,6 @@ cargo test
 - X-Forwarded-* 헤더 추가
 - Graceful shutdown (SIGINT/SIGTERM)
 
-## 지원하지 않는 기능 (의도적)
-
-RetroTLS는 의도적으로 다음 기능을 지원하지 않습니다:
-
-- 포워드 프록시 / CONNECT 메소드
-- SOCKS 프록시
-- HTTP/2 (향후 추가 가능)
-- 인증/인가
-- 레이트 리미팅
-- 캐싱
-- 요청/응답 바디 수정
-- 웹 UI 또는 메트릭 엔드포인트
-- 동적 라우팅
-
 ## 아키텍처
 
 RetroTLS는 최소한의 아키텍처를 따릅니다:
@@ -207,15 +193,6 @@ RetroTLS는 최소한의 아키텍처를 따릅니다:
 ## 라이선스
 
 MIT License - 자세한 내용은 LICENSE 파일을 참조하세요.
-
-## 기여
-
-기여를 환영합니다! 다음 사항을 확인해주세요:
-
-- Rust 모범 사례 준수
-- 테스트 통과: `cargo test`
-- clippy 경고 없음: `cargo clippy`
-- 코드 포맷팅: `cargo fmt`
 
 ## 문제 해결
 

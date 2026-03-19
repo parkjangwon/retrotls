@@ -173,20 +173,6 @@ cargo test
 - X-Forwarded-* headers
 - Graceful shutdown (SIGINT/SIGTERM)
 
-## Not Supported (By Design)
-
-RetroTLS intentionally does not support:
-
-- Forward proxy / CONNECT method
-- SOCKS proxy
-- HTTP/2 (may be added in future)
-- Authentication/authorization
-- Rate limiting
-- Caching
-- Request/response body modification
-- Web UI or metrics endpoint
-- Dynamic routing
-
 ## Architecture
 
 RetroTLS follows a minimal architecture:
@@ -207,15 +193,6 @@ RetroTLS follows a minimal architecture:
 ## License
 
 MIT License - See LICENSE file for details.
-
-## Contributing
-
-Contributions are welcome! Please ensure:
-
-- Code follows Rust best practices
-- Tests pass: `cargo test`
-- No clippy warnings: `cargo clippy`
-- Code is formatted: `cargo fmt`
 
 ## Troubleshooting
 
