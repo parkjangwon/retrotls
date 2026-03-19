@@ -17,6 +17,41 @@ RetroTLS is a minimal, high-performance, single-binary bridge proxy that allows 
 
 ## Installation
 
+### One-Line Install (Recommended)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/parkjangwon/retrotls/main/install.sh | sh
+```
+
+Or with wget:
+
+```bash
+wget -qO- https://raw.githubusercontent.com/parkjangwon/retrotls/main/install.sh | sh
+```
+
+If `~/.local/bin` is not in your PATH, add:
+```bash
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+### Update
+
+Same as install. Automatically updates to the latest version:
+```bash
+curl -fsSL https://raw.githubusercontent.com/parkjangwon/retrotls/main/install.sh | sh
+```
+
+### Uninstall
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/parkjangwon/retrotls/main/install.sh | sh -s -- --uninstall
+```
+
+### Manual Installation
+
+Download the binary for your OS from the releases page:  
+https://github.com/parkjangwon/retrotls/releases
+
 ### From Source
 
 ```bash
@@ -24,12 +59,6 @@ git clone https://github.com/retrotls/retrotls
 cd retrotls
 cargo build --release
 ```
-
-The binary will be at `target/release/retrotls`.
-
-### Pre-built Binary
-
-Download the latest release from the releases page and place it in your PATH.
 
 ## Usage
 
