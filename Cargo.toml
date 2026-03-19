@@ -1,0 +1,48 @@
+[package]
+name = "retrotls"
+version = "0.1.0"
+edition = "2021"
+authors = ["RetroTLS Contributors"]
+description = "Ultra-lightweight HTTP to HTTPS bridge proxy"
+license = "MIT"
+repository = "https://github.com/retrotls/retrotls"
+keywords = ["proxy", "http", "https", "bridge", "tls"]
+categories = ["network-programming", "web-programming"]
+rust-version = "1.75"
+
+[[bin]]
+name = "retrotls"
+path = "src/main.rs"
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+hyper = { version = "1", features = ["full"] }
+hyper-util = { version = "0.1", features = ["full"] }
+http-body-util = "0.1"
+http-body = "1"
+tokio-rustls = "0.26"
+rustls = { version = "0.23", default-features = false, features = ["logging", "tls12", "ring"] }
+rustls-native-certs = "0.8"
+serde = { version = "1", features = ["derive"] }
+serde_yaml = "0.9"
+clap = { version = "4", features = ["derive"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+thiserror = "2"
+bytes = "1"
+http = "1"
+url = "2"
+chrono = "0.4"
+futures-util = "0.3"
+pin-project-lite = "0.2"
+dirs = "5"
+
+[dev-dependencies]
+tokio-test = "0.4"
+
+[profile.release]
+opt-level = 3
+lto = true
+strip = true
+codegen-units = 1
+panic = "abort"

@@ -1,0 +1,6 @@
+access_log: true
+listeners:
+  - listen: "127.0.0.1:8080"
+    upstream: "https://httpbin.org"
+  - listen: "127.0.0.1:8081"
+    upstream: "https://jsonplaceholder.typicode.com"

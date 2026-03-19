@@ -1,0 +1,15 @@
+# RetroTLS Configuration
+# Place this file at ~/.config/retrotls/config.yaml
+
+# Enable access logging
+access_log: true
+
+# Listeners - each maps a local address to an HTTPS upstream
+listeners:
+  # Example 1: Simple HTTPS upstream
+  - listen: "127.0.0.1:8080"
+    upstream: "https://api.example.com"
+  
+  # Example 2: Upstream with path prefix
+  - listen: "127.0.0.1:8081"
+    upstream: "https://api.internal.com/v1"

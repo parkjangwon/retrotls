@@ -1,0 +1,33 @@
+[Unit]
+Description=RetroTLS - HTTP to HTTPS Bridge Proxy
+Documentation=https://github.com/retrotls/retrotls
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/retrotls
+Restart=on-failure
+RestartSec=5
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=retrotls
+
+[Install]
+WantedBy=default.target
+
+# Installation instructions:
+# 1. Copy this file: cp retrotls.service ~/.config/systemd/user/
+# 2. Reload systemd: systemctl --user daemon-reload
+# 3. Enable service: systemctl --user enable retrotls
+# 4. Start service: systemctl --user start retrotls
+# 5. Check status: systemctl --user status retrotls
+# 6. View logs: journalctl --user -u retrotls -f
