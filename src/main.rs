@@ -7,7 +7,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use bytes::Bytes;
-use clap::Parser;
+use clap::{Parser, Subcommand};
 use http::header::HOST;
 use http::{Request, Response, StatusCode, Uri};
 use http_body_util::{BodyExt, Full};
@@ -28,7 +28,7 @@ use tokio_rustls::TlsConnector;
 use tracing::{error, info, warn};
 use tracing_subscriber::EnvFilter;
 
-const VERSION: &str = "1.1.0";
+const VERSION: &str = "1.2.0";
 const DEFAULT_LOG_LEVEL: &str = "info";
 const DEFAULT_SHUTDOWN_TIMEOUT_SECS: u64 = 30;
 
@@ -80,25 +80,32 @@ fn is_process_running(pid: u32) -> bool {
 
 #[derive(Parser)]
 #[command(name = "retrotls")]
-#[command(about = "Ultra-lightweight HTTP to HTTPS bridge proxy")]
+#[command(about = "Ultra-lightweight HTTP to HTTPS bridge proxy", version = VERSION)]
 struct Cli {
-    #[arg(value_name = "COMMAND")]
-    command: Option<String>,
+    #[command(subcommand)]
+    command: Option<Commands>,
 
-    #[arg(short, long, value_name = "FILE")]
+    #[arg(short, long, value_name = "FILE", help = "Configuration file path")]
     config: Option<PathBuf>,
 
-    #[arg(long)]
+    #[arg(long, help = "Check configuration validity and exit")]
     check: bool,
 
-    #[arg(long)]
-    version: bool,
-
-    #[arg(long, value_name = "LEVEL")]
+    #[arg(long, help = "Log level (debug, info, warn, error)")]
     log_level: Option<String>,
 
-    #[arg(long)]
+    #[arg(long, help = "Run in foreground (do not daemonize)")]
     foreground: bool,
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    #[command(about = "Start the RetroTLS daemon (default)")]
+    Start,
+    #[command(about = "Stop the running RetroTLS daemon")]
+    Stop,
+    #[command(about = "Print version information")]
+    Version,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -247,23 +254,17 @@ async fn main() {
 async fn run() -> Result<(), AppError> {
     let cli = Cli::parse();
 
-    if cli.version {
-        println!("{VERSION}");
-        return Ok(());
-    }
-
-    if let Some(cmd) = cli.command.as_deref() {
+    if let Some(cmd) = cli.command {
         match cmd {
-            "stop" => {
+            Commands::Stop => {
                 return stop_daemon();
             }
-            "start" => {
-                // continue to start daemon
+            Commands::Version => {
+                println!("{VERSION}");
+                return Ok(());
             }
-            _ => {
-                eprintln!("Unknown command: {}", cmd);
-                eprintln!("Usage: retrotls [start|stop] [options]");
-                std::process::exit(1);
+            Commands::Start => {
+                // continue to start daemon
             }
         }
     }

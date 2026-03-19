@@ -82,14 +82,21 @@ retrotls
 ### CLI 옵션
 
 ```
-retrotls [OPTIONS]
+retrotls [OPTIONS] [COMMAND]
+
+Commands:
+  start    데몬 시작 (기본값)
+  stop     실행 중인 데몬 종료
+  version  버전 정보 출력
+  help     도움말 출력
 
 Options:
   -c, --config <FILE>    설정 파일 경로
       --check            설정 검증 후 종료
-      --version          버전 출력
       --log-level <LEVEL> 로그 레벨 (debug, info, warn, error)
+      --foreground       포그라운드 모드 실행
   -h, --help             도움말 출력
+  -V, --version          버전 출력
 ```
 
 ### 요청 흐름 예시
