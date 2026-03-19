@@ -111,6 +111,8 @@ enum Commands {
 #[derive(Debug, Deserialize, Clone)]
 struct Config {
     #[serde(default)]
+    log_level: Option<String>,
+    #[serde(default)]
     access_log: bool,
     #[serde(default)]
     shutdown_timeout_secs: Option<u64>,
@@ -296,13 +298,17 @@ async fn run() -> Result<(), AppError> {
     // Write PID file for foreground mode too (for stop command)
     write_pid_file(std::process::id())?;
 
-    let log_level = cli.log_level.as_deref().unwrap_or(DEFAULT_LOG_LEVEL);
+    let config = load_config(&config_path)?;
+    config.validate()?;
+
+    let log_level = cli
+        .log_level
+        .as_deref()
+        .or(config.log_level.as_deref())
+        .unwrap_or(DEFAULT_LOG_LEVEL);
     init_logging(log_level);
 
     info!("RetroTLS v{VERSION} starting...");
-
-    let config = load_config(&config_path)?;
-    config.validate()?;
 
     let proxy = Arc::new(Proxy::new(config.access_log));
     let in_flight = Arc::new(AtomicUsize::new(0));
@@ -408,7 +414,8 @@ fn default_config_path() -> PathBuf {
     PathBuf::from(".retrotls/config.yaml")
 }
 
-const DEFAULT_CONFIG_CONTENT: &str = r#"access_log: true
+const DEFAULT_CONFIG_CONTENT: &str = r#"log_level: "info"
+access_log: true
 listeners:
   - listen: "127.0.0.1:8080"
     upstream: "https://api.example.com"

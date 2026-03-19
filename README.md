@@ -118,14 +118,12 @@ https://api.example.com/users?id=1
 ### 전체 예시
 
 ```yaml
+log_level: "info"
 access_log: true
 
 listeners:
   - listen: "127.0.0.1:8080"
     upstream: "https://api1.com"
-  
-  - listen: "127.0.0.1:8081"
-    upstream: "https://api2.com/base"
 ```
 
 ### 설정 옵션
@@ -141,6 +139,7 @@ listeners:
 
 #### Logging
 
+- `log_level`: 로그 레벨 (debug, info, warn, error)
 - `access_log`: 접근 로깅 활성화 (기본값: true)
 
 접근 로그 형식:
@@ -171,6 +170,7 @@ curl -X POST http://127.0.0.1:8080/post -H "Content-Type: application/json" -d '
 사용자 systemd 서비스 파일이 제공됩니다 (`retrotls.service`):
 
 ```bash
+mkdir -p ~/.config/systemd/user/
 cp retrotls.service ~/.config/systemd/user/
 systemctl --user daemon-reload
 systemctl --user enable retrotls
