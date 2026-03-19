@@ -1,6 +1,6 @@
 use std::convert::Infallible;
 use std::net::SocketAddr;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
@@ -32,8 +32,59 @@ const VERSION: &str = "1.0.0";
 const DEFAULT_LOG_LEVEL: &str = "info";
 const DEFAULT_SHUTDOWN_TIMEOUT_SECS: u64 = 30;
 
+fn retrotls_home() -> PathBuf {
+    if let Ok(home) = std::env::var("HOME") {
+        PathBuf::from(home).join(".retrotls")
+    } else {
+        PathBuf::from(".retrotls")
+    }
+}
+
+fn pid_file_path() -> PathBuf {
+    retrotls_home().join("retrotls.pid")
+}
+
+fn write_pid_file(pid: u32) -> Result<(), std::io::Error> {
+    let pid_path = pid_file_path();
+    if let Some(parent) = pid_path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    std::fs::write(&pid_path, pid.to_string())
+}
+
+fn read_pid_file() -> Option<u32> {
+    let pid_path = pid_file_path();
+    let content = std::fs::read_to_string(&pid_path).ok()?;
+    content.trim().parse().ok()
+}
+
+fn remove_pid_file() {
+    let _ = std::fs::remove_file(pid_file_path());
+}
+
+fn is_process_running(pid: u32) -> bool {
+    #[cfg(unix)]
+    {
+        unsafe { libc::kill(pid as i32, 0) == 0 }
+    }
+    #[cfg(not(unix))]
+    {
+        use std::process::Command;
+        Command::new("tasklist")
+            .args(["/FI", &format!("PID eq {}", pid)])
+            .output()
+            .map(|output| String::from_utf8_lossy(&output.stdout).contains(&pid.to_string()))
+            .unwrap_or(false)
+    }
+}
+
 #[derive(Parser)]
+#[command(name = "retrotls")]
+#[command(about = "Ultra-lightweight HTTP to HTTPS bridge proxy")]
 struct Cli {
+    #[arg(value_name = "COMMAND")]
+    command: Option<String>,
+
     #[arg(short, long, value_name = "FILE")]
     config: Option<PathBuf>,
 
@@ -45,6 +96,9 @@ struct Cli {
 
     #[arg(long, value_name = "LEVEL")]
     log_level: Option<String>,
+
+    #[arg(long)]
+    foreground: bool,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -103,6 +157,83 @@ enum AppError {
 
     #[error("Listener task failed: {0}")]
     ListenerTask(String),
+
+    #[error("Daemon already running (PID: {0})")]
+    AlreadyRunning(u32),
+
+    #[error("Daemon not running")]
+    NotRunning,
+
+    #[error("IO error: {0}")]
+    Io(#[from] std::io::Error),
+}
+
+fn daemonize() -> Result<(), std::io::Error> {
+    #[cfg(unix)]
+    {
+        use std::process::Command;
+        use std::os::unix::process::CommandExt;
+        
+        let args: Vec<String> = std::env::args()
+            .skip(1)
+            .filter(|arg| arg != "--foreground" && arg != "-f")
+            .chain(std::iter::once("--foreground".to_string()))
+            .collect();
+        
+        let mut cmd = Command::new(std::env::current_exe()?);
+        cmd.args(&args)
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null());
+        
+        unsafe {
+            cmd.pre_exec(|| {
+                libc::setsid();
+                Ok(())
+            });
+        }
+        
+        cmd.spawn()?;
+        std::process::exit(0);
+    }
+    
+    #[cfg(not(unix))]
+    {
+        Ok(())
+    }
+}
+
+fn stop_daemon() -> Result<(), AppError> {
+    let pid = read_pid_file().ok_or(AppError::NotRunning)?;
+    
+    if !is_process_running(pid) {
+        remove_pid_file();
+        return Err(AppError::NotRunning);
+    }
+    
+    #[cfg(unix)]
+    {
+        unsafe {
+            if libc::kill(pid as i32, libc::SIGTERM) != 0 {
+                return Err(AppError::ConfigValidation(format!(
+                    "Failed to send signal to process {}",
+                    pid
+                )));
+            }
+        }
+    }
+    
+    #[cfg(windows)]
+    {
+        use std::process::Command;
+        let _ = Command::new("taskkill")
+            .args(["/PID", &pid.to_string(), "/F"])
+            .output();
+    }
+    
+    println!("RetroTLS daemon stopped (PID: {})", pid);
+    remove_pid_file();
+    Ok(())
 }
 
 #[tokio::main]
@@ -121,6 +252,22 @@ async fn run() -> Result<(), AppError> {
         return Ok(());
     }
 
+    if let Some(cmd) = cli.command.as_deref() {
+        match cmd {
+            "stop" => {
+                return stop_daemon();
+            }
+            "start" => {
+                // continue to start daemon
+            }
+            _ => {
+                eprintln!("Unknown command: {}", cmd);
+                eprintln!("Usage: retrotls [start|stop] [options]");
+                std::process::exit(1);
+            }
+        }
+    }
+
     let config_path = cli.config.unwrap_or_else(default_config_path);
 
     if cli.check {
@@ -130,8 +277,28 @@ async fn run() -> Result<(), AppError> {
         return Ok(());
     }
 
+    // Check if already running
+    if let Some(pid) = read_pid_file() {
+        if is_process_running(pid) {
+            return Err(AppError::AlreadyRunning(pid));
+        }
+        remove_pid_file();
+    }
+
+    // Daemonize unless --foreground is specified
+    if !cli.foreground {
+        write_pid_file(std::process::id())?;
+        daemonize()?;
+        return Ok(());
+    }
+
+    // Write PID file for foreground mode too (for stop command)
+    write_pid_file(std::process::id())?;
+
     let log_level = cli.log_level.as_deref().unwrap_or(DEFAULT_LOG_LEVEL);
     init_logging(log_level);
+
+    info!("RetroTLS v{VERSION} starting...");
 
     let config = load_config(&config_path)?;
     config.validate()?;
@@ -187,8 +354,13 @@ async fn run() -> Result<(), AppError> {
         );
     }
 
+    remove_pid_file();
     info!("Shutdown complete");
     Ok(())
+}
+
+fn log_file_path() -> PathBuf {
+    retrotls_home().join("logs").join("retrotls.log")
 }
 
 fn init_logging(level: &str) {
@@ -196,22 +368,43 @@ fn init_logging(level: &str) {
         .or_else(|_| EnvFilter::try_new(level))
         .unwrap_or_else(|_| EnvFilter::new(DEFAULT_LOG_LEVEL));
 
-    let _ = tracing_subscriber::fmt()
-        .with_env_filter(env_filter)
-        .with_target(true)
-        .with_level(true)
-        .try_init();
+    let log_path = log_file_path();
+    if let Some(parent) = log_path.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+
+    match std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&log_path)
+    {
+        Ok(file) => {
+            let _ = tracing_subscriber::fmt()
+                .with_env_filter(env_filter)
+                .with_target(true)
+                .with_level(true)
+                .with_writer(std::sync::Arc::new(file))
+                .try_init();
+        }
+        Err(e) => {
+            eprintln!("Failed to open log file {}: {}", log_path.display(), e);
+            let _ = tracing_subscriber::fmt()
+                .with_env_filter(env_filter)
+                .with_target(true)
+                .with_level(true)
+                .try_init();
+        }
+    };
 }
 
 fn default_config_path() -> PathBuf {
     if let Ok(home) = std::env::var("HOME") {
         return PathBuf::from(home)
-            .join(".config")
-            .join("retrotls")
+            .join(".retrotls")
             .join("config.yaml");
     }
 
-    PathBuf::from(".config/retrotls/config.yaml")
+    PathBuf::from(".retrotls/config.yaml")
 }
 
 const DEFAULT_CONFIG_CONTENT: &str = r#"access_log: true

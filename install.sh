@@ -4,19 +4,17 @@
 
 set -e
 
-# Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
 YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
-# Configuration
 REPO="parkjangwon/retrotls"
 BINARY_NAME="retrotls"
 INSTALL_DIR="${INSTALL_DIR:-$HOME/.local/bin}"
+RETROTLS_HOME="${HOME}/.retrotls"
 
-# Detect OS and architecture
 detect_platform() {
     local _os=""
     local _arch=""
@@ -55,14 +53,12 @@ detect_platform() {
     fi
 }
 
-# Get latest version
 get_latest_version() {
     curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" | \
         grep '"tag_name":' | \
         sed -E 's/.*"tag_name": "([^"]+)".*/\1/'
 }
 
-# Download and install
 download_and_install() {
     local _version="$1"
     local _asset="$2"
@@ -89,16 +85,13 @@ download_and_install() {
             ;;
     esac
 
-    # Create install directory if needed
     mkdir -p "${INSTALL_DIR}"
 
-    # Check if binary already exists
     if [ -f "${INSTALL_DIR}/${BINARY_NAME}" ]; then
         echo "${YELLOW}!${NC} Existing installation found. Updating..."
         rm -f "${INSTALL_DIR}/${BINARY_NAME}"
     fi
 
-    # Install binary
     local _binary_name="${BINARY_NAME}"
     if [ "${_asset}" = "${BINARY_NAME}-windows-x86_64.zip" ]; then
         _binary_name="${BINARY_NAME}.exe"
@@ -107,13 +100,11 @@ download_and_install() {
     mv "${_binary_name}" "${INSTALL_DIR}/${BINARY_NAME}"
     chmod +x "${INSTALL_DIR}/${BINARY_NAME}"
 
-    # Cleanup
     rm -rf "${_tmp_dir}"
 
     echo "${GREEN}✓${NC} RetroTLS ${_version} installed to ${INSTALL_DIR}/${BINARY_NAME}"
 }
 
-# Check if install directory is in PATH
 check_path() {
     case ":${PATH}:" in
         *":${INSTALL_DIR}:"*)
@@ -123,19 +114,16 @@ check_path() {
     return 1
 }
 
-# Main install function
 install_retrotls() {
     echo "${BLUE}╔════════════════════════════════════╗${NC}"
     echo "${BLUE}║${NC}      ${GREEN}RetroTLS Installer${NC}           ${BLUE}║${NC}"
     echo "${BLUE}╚════════════════════════════════════╝${NC}"
     echo ""
 
-    # Detect platform
     local _asset
     _asset="$(detect_platform)"
     echo "${BLUE}→${NC} Detected platform: ${_asset}"
 
-    # Get latest version
     local _version
     _version="$(get_latest_version)"
     if [ -z "${_version}" ]; then
@@ -144,10 +132,8 @@ install_retrotls() {
     fi
     echo "${BLUE}→${NC} Latest version: ${_version}"
 
-    # Download and install
     download_and_install "${_version}" "${_asset}"
 
-    # Check PATH
     if ! check_path; then
         echo ""
         echo "${YELLOW}!${NC} ${INSTALL_DIR} is not in your PATH"
@@ -155,7 +141,6 @@ install_retrotls() {
         echo "   ${BLUE}export PATH=\"\$HOME/.local/bin:\$PATH\"${NC}"
     fi
 
-    # Verify installation
     if command -v "${BINARY_NAME}" >/dev/null 2>&1; then
         echo ""
         echo "${GREEN}✓${NC} Installation verified:"
@@ -163,10 +148,14 @@ install_retrotls() {
     fi
 
     echo ""
-    echo "${GREEN}Done!${NC} Run '${BINARY_NAME} --help' to get started."
+    echo "${GREEN}Done!${NC} Run '${BINARY_NAME}' to start the daemon."
+    echo ""
+    echo "Files:"
+    echo "  Config: ${RETROTLS_HOME}/config.yaml"
+    echo "  Logs:   ${RETROTLS_HOME}/logs/retrotls.log"
+    echo "  PID:    ${RETROTLS_HOME}/retrotls.pid"
 }
 
-# Uninstall function
 uninstall_retrotls() {
     echo "${BLUE}╔════════════════════════════════════╗${NC}"
     echo "${BLUE}║${NC}      ${RED}RetroTLS Uninstaller${NC}         ${BLUE}║${NC}"
@@ -176,7 +165,6 @@ uninstall_retrotls() {
     local _found=0
     local _binary_path=""
 
-    # Find binary in PATH
     if command -v "${BINARY_NAME}" >/dev/null 2>&1; then
         _binary_path="$(command -v "${BINARY_NAME}")"
         _found=1
@@ -186,6 +174,9 @@ uninstall_retrotls() {
     fi
 
     if [ "$_found" -eq 1 ]; then
+        echo "${BLUE}→${NC} Stopping daemon..."
+        "${_binary_path}" stop 2>/dev/null || true
+        
         echo "${BLUE}→${NC} Removing binary: ${_binary_path}"
         rm -f "${_binary_path}"
         echo "${GREEN}✓${NC} Binary removed"
@@ -193,19 +184,16 @@ uninstall_retrotls() {
         echo "${YELLOW}!${NC} Binary not found in PATH or ${INSTALL_DIR}"
     fi
 
-    # Remove config directory
-    local _config_dir="${HOME}/.config/retrotls"
-    if [ -d "${_config_dir}" ]; then
-        echo "${BLUE}→${NC} Removing config directory: ${_config_dir}"
-        rm -rf "${_config_dir}"
-        echo "${GREEN}✓${NC} Config directory removed"
+    if [ -d "${RETROTLS_HOME}" ]; then
+        echo "${BLUE}→${NC} Removing data directory: ${RETROTLS_HOME}"
+        rm -rf "${RETROTLS_HOME}"
+        echo "${GREEN}✓${NC} Data directory removed"
     fi
 
     echo ""
     echo "${GREEN}Done!${NC} RetroTLS has been uninstalled."
 }
 
-# Parse arguments
 case "${1:-}" in
     --uninstall|-u)
         uninstall_retrotls
@@ -219,6 +207,11 @@ case "${1:-}" in
         echo ""
         echo "Environment variables:"
         echo "  INSTALL_DIR       Installation directory (default: ~/.local/bin)"
+        echo ""
+        echo "RetroTLS directories:"
+        echo "  ~/.retrotls/config.yaml    Configuration file"
+        echo "  ~/.retrotls/logs/          Log files"
+        echo "  ~/.retrotls/retrotls.pid   PID file"
         ;;
     *)
         install_retrotls
