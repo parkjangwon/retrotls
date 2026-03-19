@@ -64,20 +64,15 @@ cargo build --release
 
 ### Quick Start
 
-1. Create configuration directory:
+Run RetroTLS:
 ```bash
-mkdir -p ~/.config/retrotls
+retrotls
 ```
 
-2. Create a configuration file at `~/.config/retrotls/config.yaml`:
-```yaml
-access_log: true
-listeners:
-  - listen: "127.0.0.1:8080"
-    upstream: "https://api.example.com"
-```
+On first run, `~/.config/retrotls/config.yaml` is created automatically.  
+Edit the config file and run again.
 
-3. Run RetroTLS:
+Or create the config manually:
 ```bash
 retrotls
 ```

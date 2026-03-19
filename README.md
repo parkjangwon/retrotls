@@ -64,20 +64,15 @@ cargo build --release
 
 ### 빠른 시작
 
-1. 설정 디렉토리 생성:
+RetroTLS 실행:
 ```bash
-mkdir -p ~/.config/retrotls
+retrotls
 ```
 
-2. 설정 파일 생성 (`~/.config/retrotls/config.yaml`):
-```yaml
-access_log: true
-listeners:
-  - listen: "127.0.0.1:8080"
-    upstream: "https://api.example.com"
-```
+최초 실행 시 `~/.config/retrotls/config.yaml`이 자동 생성됩니다.  
+설정 파일을 수정한 후 다시 실행하세요.
 
-3. RetroTLS 실행:
+또는 직접 설정 파일 생성:
 ```bash
 retrotls
 ```
